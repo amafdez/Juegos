@@ -1,0 +1,121 @@
+/* Juego — generated from tokens.json */
+:root, [data-theme="light"] {
+  --bg-cream: #fff8ee; /* Fondo de página por defecto: crema cálida, como papel. */
+  --bg-pink: #ffeef3; /* Fondo de página en el turno del equipo rosa. */
+  --bg-sky: #eaf5fd; /* Fondo de página en el turno del equipo celeste y en pantallas de reglas. */
+  --surface: #fffdfa; /* Tarjetas de juego y opciones de respuesta. */
+  --line: #dcc6cc; /* Hairline de 1px: borde de tarjetas, marcadores y filas de resultado. Decorativa, nunca el único indicador de nada. */
+  --line-control: #a67b8e; /* Borde de 1.5px de controles (opciones, botón outline) sobre bg-cream, bg-pink, bg-sky o surface (3.2:1 o más). No usar sobre los tonos soft. */
+  --ink: #4a2336; /* Texto principal y borde del turno activo: ciruela oscura. 10.7:1 o más sobre todo fondo y sobre todos los rellenos. */
+  --ink-2: #7a5566; /* Texto secundario (captions, instrucciones) sobre fondos claros y soft, 5.1:1 o más. Nunca sobre pink, sky, butter ni sage (2.8:1). */
+  --pink: #f28cb0; /* Rosa: relleno del botón principal y del equipo rosa. Texto encima siempre en ink (5.8:1), nunca blanco. */
+  --pink-soft: #fde0ea; /* Rosa pastel: turno del equipo rosa y barras de resultado. */
+  --pink-deep: #a8325f; /* Rosa como texto, marca y estado de urgencia sobre fondos claros y soft (5.2:1 o más). */
+  --sky: #86cdf2; /* Celeste: relleno del botón de avanzar y del equipo celeste. Texto encima en ink (7.6:1). */
+  --sky-soft: #dff1fc; /* Celeste pastel: turno del equipo celeste, pista del temporizador, aviso neutro. */
+  --sky-deep: #1d6a9b; /* Celeste como texto y arco del temporizador sobre fondos claros (5:1 o más). */
+  --butter: #f7d56a; /* Mantequilla: tercer equipo, primer lugar, ganador del voto, racha. Texto encima en ink (9.3:1). */
+  --butter-soft: #fff1c7; /* Mantequilla pastel: turno del tercer equipo. */
+  --sage: #a8cf98; /* Verde salvia: segundo apoyo de portada. Texto encima en ink. */
+  --correct: #2f7a4f; /* Respuesta correcta como texto, borde e ícono. Siempre con ícono y palabra. Sobre correct-soft o surface (4.5:1 o más). */
+  --correct-soft: #e3f3df; /* Fondo de la respuesta correcta y del bloque de puntos de un acierto. */
+  --incorrect: #b4483a; /* Respuesta incorrecta como texto, borde e ícono: terracota, no rojo alarma. Siempre con ícono y palabra. */
+  --incorrect-soft: #fde8e2; /* Fondo de la respuesta incorrecta y del bloque de puntos de un fallo. */
+  --focus: var(--ink); /* Anillo de foco: 2px sólido con 2px de separación, 10:1 o más sobre todo fondo. */
+}
+:root {
+  --space-1: 4px; /* Ícono a texto; entre pips. */
+  --space-2: 8px; /* Entre opciones, celdas y chips de un mismo grupo. */
+  --space-3: 12px; /* Padding vertical de marcadores; entre bloques de una tarjeta. */
+  --space-4: 16px; /* Padding horizontal de opciones y avisos; entre secciones de una tarjeta. */
+  --space-5: 20px; /* Padding horizontal de botones. */
+  --space-6: 24px; /* Padding de tarjetas. */
+  --space-8: 32px; /* Entre bloques de una pantalla. */
+  --space-12: 48px; /* Entre el marcador y la tarjeta de juego. */
+  --radius-sm: 4px; /* Etiquetas, tag de turno, combo, teclas A-D, pips. */
+  --radius-md: 8px; /* Pocos usos: elementos pequeños dentro de una tarjeta. */
+  --radius-lg: 14px; /* Tarjetas, preguntas, opciones, marcadores, avisos y filas de resultado. */
+  --radius-full: 999px; /* Botones, píldoras (tiempo, tags) y el temporizador. */
+  --font-display: "Astrid Grotesk", "Helvetica Neue", Arial, sans-serif;
+  --font-sans: "Astrid Grotesk", "Helvetica Neue", Arial, sans-serif;
+  --text-mega: 700 96px/0.95 var(--font-display); /* Una sola cosa a la vez, a lo lejos: la palabra de charada, el ganador. */
+  --text-score: 700 56px/1 var(--font-display); /* Puntaje grande: cuenta regresiva, resultado final. Números tabulares. */
+  --text-score-sm: 700 36px/1 var(--font-display); /* Puntaje en marcadores y avisos de puntos. Números tabulares. */
+  --text-display: 700 44px/1.05 var(--font-display); /* Título de pantalla: inicio de ronda, resultados. */
+  --text-question: 500 36px/1.12 var(--font-display); /* La pregunta o consigna. Legible desde tres metros en una laptop. */
+  --text-answer: 500 22px/28px var(--font-sans); /* Opciones de respuesta, nombres en votación, título de un aviso. */
+  --text-button: 700 20px/24px var(--font-sans); /* Botones y conteos en filas de resultado. */
+  --text-body: 400 20px/28px var(--font-sans); /* Instrucciones y reglas. */
+  --text-caption: 400 15px/20px var(--font-sans); /* Detalle secundario de un aviso, ayudas bajo un control. */
+  --text-label: 700 14px/16px var(--font-sans); /* Etiquetas en mayúsculas: ronda, categoría, equipo, estado. */
+}
+.mega {
+  font-family: var(--font-display);
+  font-size: 96px;
+  line-height: 0.95;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+.score {
+  font-family: var(--font-display);
+  font-size: 56px;
+  line-height: 1;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.score-sm {
+  font-family: var(--font-display);
+  font-size: 36px;
+  line-height: 1;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.display {
+  font-family: var(--font-display);
+  font-size: 44px;
+  line-height: 1.05;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.question {
+  font-family: var(--font-display);
+  font-size: 36px;
+  line-height: 1.12;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+.answer {
+  font-family: var(--font-sans);
+  font-size: 22px;
+  line-height: 28px;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+.button {
+  font-family: var(--font-sans);
+  font-size: 20px;
+  line-height: 24px;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+.body {
+  font-family: var(--font-sans);
+  font-size: 20px;
+  line-height: 28px;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+.caption {
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 20px;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+.label {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 16px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}

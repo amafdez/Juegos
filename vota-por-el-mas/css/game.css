@@ -1,0 +1,101 @@
+/* Vota por el más: capa propia sobre el design system "Juego" (tokens.css + bundle.css). */
+
+/* Solo existe el peso Bold en los archivos del design system, así que todo el texto sale en Bold.
+   Si agregas los otros pesos a /fonts, declara aquí un @font-face por cada uno. */
+@font-face {
+  font-family: "Astrid Grotesk";
+  src: url("../fonts/AstridGrotesk-Bold.otf") format("opentype");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+html, body { margin: 0; min-height: 100%; }
+body { min-height: 100dvh; }
+h1 { font-weight: 700; }
+
+.vm-app { display: flex; justify-content: center; min-height: 100dvh; }
+
+.vm-screen {
+  width: 100%;
+  max-width: 430px;
+  min-height: 100dvh;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  padding: var(--space-8) var(--space-4) calc(var(--space-8) + env(safe-area-inset-bottom));
+}
+.vm-screen--play { gap: 0; padding: var(--space-4) var(--space-4) calc(var(--space-4) + env(safe-area-inset-bottom)); }
+
+/* Campos y chips: controles sin relleno llevan line-control de 1.5px */
+.vm-field { display: grid; gap: var(--space-2); }
+.vm-input {
+  font: var(--text-answer);
+  color: var(--ink);
+  background: var(--surface);
+  border: 1.5px solid var(--line-control);
+  border-radius: var(--radius-lg);
+  padding: var(--space-3) var(--space-4);
+  min-height: 52px;
+  width: 100%;
+  box-sizing: border-box;
+}
+.vm-input::placeholder { color: var(--ink-2); opacity: 1; }
+.vm-input--code { text-align: center; letter-spacing: 0.3em; text-transform: uppercase; }
+
+.vm-chips { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.vm-chip {
+  font: var(--text-answer);
+  min-height: 44px;
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-full);
+  border: 1.5px solid var(--line-control);
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+}
+.vm-chip[aria-pressed="true"] { background: var(--sky); border-color: var(--sky); }
+
+.vm-settings { display: grid; gap: var(--space-6); }
+.vm-code { margin: 0; letter-spacing: 0.04em; }
+
+.vm-list { display: grid; gap: var(--space-2); }
+.vm-row {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--space-3);
+  min-height: 52px; padding: 0 var(--space-4);
+  border-radius: var(--radius-lg); background: var(--pink-soft);
+  font: var(--text-answer);
+}
+.vm-tag {
+  font: var(--text-caption); background: var(--surface); color: var(--ink);
+  border-radius: var(--radius-full); padding: 2px var(--space-3);
+}
+
+.vm-error { margin: 0; font: var(--text-caption); color: var(--incorrect); min-height: 20px; }
+.vm-error:empty { min-height: 0; }
+.vm-demo { margin: 0; padding: var(--space-3) var(--space-4); border-radius: var(--radius-lg); background: var(--sky-soft); font: var(--text-caption); }
+
+/* Votar y resultado: pregunta en el primer tercio, nombres en el resto */
+.vm-play {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) minmax(0, 2fr) auto;
+  gap: var(--space-2);
+}
+.vm-play .jg-vote { grid-template-columns: 1fr; grid-auto-rows: 1fr; min-height: 0; }
+.vm-play .jg-vote.is-4 { grid-template-columns: 1fr 1fr; }
+.vm-play .jg-vote-opt { min-height: 0; font-size: 26px; overflow-wrap: anywhere; }
+.vm-play .jg-q { min-height: 120px; }
+.vm-foot { display: grid; gap: var(--space-2); justify-items: center; padding-top: var(--space-2); min-height: 52px; }
+.vm-host-note { display: grid; gap: var(--space-2); justify-items: center; }
+
+.vm-results { align-content: start; grid-auto-rows: minmax(56px, auto); }
+.vm-play--result { grid-template-rows: auto auto 1fr auto; }
+
+.jg-result.has-voters { padding-top: var(--space-3); padding-bottom: var(--space-3); row-gap: var(--space-2); }
+.jg-result .voters { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: var(--space-1); }
+.jg-result .name { overflow-wrap: anywhere; }
+
+.jg-screen-head .jg-pill { font: var(--text-caption); font-weight: 700; }

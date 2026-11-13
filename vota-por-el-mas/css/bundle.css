@@ -1,0 +1,127 @@
+/* Juego — componentes. Tipografía: Astrid Grotesk, con las clases de estilo de tokens.css (mega, score, score-sm, display, question, answer, button, body, caption, label). */
+
+.score, .score-sm { font-variant-numeric: tabular-nums; }
+.label { text-transform: uppercase; }
+
+.jg-page { background: var(--bg-cream); color: var(--ink); font: var(--text-body); -webkit-font-smoothing: antialiased; }
+.jg-page.is-pink { background: var(--bg-pink); }
+.jg-page.is-sky { background: var(--bg-sky); }
+.jg-page :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.jg-page p { margin: 0; }
+.jg-stack { display: grid; gap: var(--space-4); }
+
+/* Movimiento: corto y seco. Entrar 220ms, fallar 300ms. */
+@keyframes jg-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes jg-shake { 0%,100% { transform: none; } 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
+@keyframes jg-blink { 0%,100% { opacity: 1; } 50% { opacity: .5; } }
+.jg-in { animation: jg-in .22s ease-out both; }
+.jg-shake { animation: jg-shake .3s ease-in-out; }
+@media (prefers-reduced-motion: reduce) { .jg-page *, .jg-page *::before { animation: none !important; transition: none !important; } }
+
+/* Button */
+.jg-btn { font: var(--text-button); display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2); min-height: 44px; padding: 0 var(--space-5); border: 0; border-radius: var(--radius-full); color: var(--ink); cursor: pointer; transition: filter .12s; }
+.jg-btn:hover { filter: brightness(.94); }
+.jg-btn:active { filter: brightness(.88); }
+.jg-btn--pink { background: var(--pink); }
+.jg-btn--sky { background: var(--sky); }
+.jg-btn--butter { background: var(--butter); }
+.jg-btn--outline { background: var(--sky-soft); }
+.jg-btn--ghost { background: transparent; color: var(--pink-deep); text-decoration: underline; text-underline-offset: 3px; padding: 0 var(--space-2); }
+.jg-btn:disabled { opacity: .45; cursor: default; filter: none; }
+
+/* Card */
+.jg-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg); padding: var(--space-5); }
+
+/* Scoreboard */
+.jg-scores { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--space-2); }
+.jg-team { background: var(--surface); border: 1px solid var(--line); border-top: 4px solid var(--team, var(--pink)); border-radius: var(--radius-lg); padding: var(--space-3) var(--space-4); display: grid; gap: var(--space-1); align-content: start; }
+.jg-team .label { font: var(--text-answer); font-weight: 700; text-transform: none; letter-spacing: 0; color: var(--ink); }
+.jg-team .score-sm { color: var(--ink); }
+.jg-team.is-turn { background: var(--team); border-color: var(--team); }
+.jg-team--pink { --team: var(--pink); --team-soft: var(--pink-soft); }
+.jg-team--sky { --team: var(--sky); --team-soft: var(--sky-soft); }
+.jg-team--butter { --team: var(--butter); --team-soft: var(--butter-soft); }
+
+/* Timer */
+.jg-timer { position: relative; width: 104px; height: 104px; display: grid; place-items: center; }
+.jg-timer svg { position: absolute; inset: 0; transform: rotate(-90deg); }
+.jg-timer .track { stroke: var(--sky-soft); }
+.jg-timer .arc { stroke: var(--sky-deep); transition: stroke-dashoffset 1s linear; }
+.jg-timer.is-low .arc { stroke: var(--pink-deep); }
+.jg-timer.is-low .score { color: var(--pink-deep); animation: jg-blink 1s ease-in-out infinite; }
+
+/* Opciones de respuesta: planas, sin borde. El estado lo dice el relleno. */
+.jg-answers { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); }
+.jg-answer { font: var(--text-answer); text-align: center; display: grid; place-items: center; align-content: center; gap: var(--space-1); min-height: 56px; padding: var(--space-3) var(--space-4); border: 0; border-radius: var(--radius-lg); background: var(--pink-soft); color: var(--ink); cursor: pointer; transition: filter .12s; }
+.jg-answer:hover { filter: brightness(.96); }
+.jg-answer .key { font: var(--text-label); text-transform: uppercase; color: var(--ink-2); }
+.jg-answer.is-selected { background: var(--pink); }
+.jg-answer.is-selected .key { color: var(--ink); }
+.jg-answer.is-correct { background: var(--correct-soft); color: var(--correct); }
+.jg-answer.is-incorrect { background: var(--incorrect-soft); color: var(--incorrect); }
+.jg-answer.is-correct .key, .jg-answer.is-incorrect .key { color: inherit; }
+.jg-answer.is-dim { opacity: .45; }
+
+/* Aviso de puntos: una banda plana teñida del resultado, sin borde */
+.jg-toast { display: flex; align-items: center; gap: var(--space-3); width: min(100%, 340px); padding: var(--space-3) var(--space-4); border-radius: var(--radius-lg); background: var(--correct-soft); }
+.jg-toast .pts { font: var(--text-score-sm); font-variant-numeric: tabular-nums; color: var(--correct); }
+.jg-toast .msg { display: grid; gap: 2px; }
+.jg-toast .title { font: var(--text-answer); font-weight: 700; color: var(--ink); }
+.jg-toast .detail { font: var(--text-caption); color: var(--ink-2); }
+.jg-toast.is-miss { background: var(--incorrect-soft); }
+.jg-toast.is-miss .pts { color: var(--incorrect); }
+.jg-toast.is-time { background: var(--sky-soft); }
+.jg-toast.is-time .pts { color: var(--sky-deep); }
+
+/* Vidas y racha */
+.jg-streak { display: inline-flex; align-items: flex-end; gap: var(--space-8); }
+.jg-meter { display: grid; gap: var(--space-1); }
+.jg-meter .label { color: var(--ink-2); }
+.jg-lives { display: inline-flex; gap: var(--space-1); height: 28px; align-items: center; }
+.jg-pip { width: 24px; height: 10px; border-radius: var(--radius-sm); background: var(--pink-deep); }
+.jg-pip.is-off { background: transparent; box-shadow: inset 0 0 0 1.5px var(--line-control); }
+.jg-combo { justify-self: start; background: var(--butter); color: var(--ink); border-radius: var(--radius-sm); padding: 2px var(--space-2); font: var(--text-button); }
+
+/* Charada */
+.jg-charade { text-align: center; display: grid; gap: var(--space-4); justify-items: center; }
+.jg-charade .mega { overflow-wrap: anywhere; }
+.jg-charade-actions { display: flex; gap: var(--space-2); justify-content: center; flex-wrap: wrap; }
+.jg-cover { background: var(--pink); color: var(--ink); border-radius: var(--radius-md); padding: var(--space-6); }
+
+/* Quién es más: votar */
+.jg-vote { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); }
+.jg-vote-opt { font: var(--text-answer); display: grid; place-items: center; min-height: 56px; padding: var(--space-3) var(--space-4); border: 0; border-radius: var(--radius-lg); background: var(--pink-soft); color: var(--ink); cursor: pointer; text-align: center; transition: filter .12s; }
+.jg-vote-opt:hover { filter: brightness(.96); }
+.jg-vote-opt.is-selected { background: var(--pink); }
+
+/* Quién es más: resultado */
+.jg-results { display: grid; gap: var(--space-2); }
+.jg-result { position: relative; display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: var(--space-3); min-height: 52px; padding: 0 var(--space-4); border-radius: var(--radius-lg); background: var(--pink-soft); overflow: hidden; }
+.jg-result > * { position: relative; }
+.jg-result .bar { position: absolute; inset: 0 auto 0 0; width: calc(var(--share) * 1%); background: var(--pink); }
+.jg-result .name { font: var(--text-answer); }
+.jg-result .count { font: var(--text-button); font-variant-numeric: tabular-nums; min-width: 1.5ch; text-align: right; }
+.jg-result .tag { background: var(--surface); color: var(--ink); border-radius: var(--radius-full); padding: 2px var(--space-3); }
+.jg-result.is-winner { background: var(--butter-soft); }
+.jg-result.is-winner .bar { background: var(--butter); }
+
+/* Podio */
+.jg-podium { display: grid; grid-template-columns: 1fr 1.2fr 1fr; align-items: end; gap: var(--space-2); }
+.jg-step { text-align: center; display: grid; gap: var(--space-1); }
+.jg-step .answer { font-weight: 700; }
+.jg-step .caption { color: var(--ink-2); }
+.jg-block { border-radius: var(--radius-sm) var(--radius-sm) 0 0; display: grid; align-content: start; justify-items: center; padding-top: var(--space-3); font: var(--text-score); font-weight: 700; color: var(--ink); }
+.jg-step--1 .jg-block { height: 150px; background: var(--butter); }
+.jg-step--2 .jg-block { height: 110px; background: var(--sky); font-size: 44px; }
+.jg-step--3 .jg-block { height: 80px; background: var(--pink); font-size: 36px; }
+
+/* Pantalla de celular: encabezado, pregunta en el primer tercio, alternativas el resto */
+.jg-screen { width: 100%; max-width: 390px; height: 720px; display: grid; grid-template-rows: auto minmax(0, 1fr) minmax(0, 2fr); gap: var(--space-2); padding: var(--space-4); box-sizing: border-box; background: var(--surface); border-radius: var(--radius-lg); }
+.jg-screen-head { display: flex; justify-content: space-between; align-items: center; gap: var(--space-2); }
+.jg-pill { background: var(--pink-soft); color: var(--ink); border-radius: var(--radius-full); padding: var(--space-1) var(--space-4); font: var(--text-answer); font-variant-numeric: tabular-nums; }
+.jg-pill.is-low { background: var(--incorrect-soft); color: var(--incorrect); }
+.jg-q { display: grid; place-items: center; text-align: center; padding: var(--space-4); border-radius: var(--radius-lg); background: var(--pink-soft); }
+.jg-q .question { font-size: 28px; line-height: 1.12; }
+.jg-screen .jg-answers, .jg-screen .jg-vote { grid-template-columns: 1fr 1fr; grid-auto-rows: 1fr; min-height: 0; }
+.jg-screen .jg-answer, .jg-screen .jg-vote-opt { min-height: 0; font-size: 24px; }
+.jg-screen .jg-results { align-content: stretch; grid-auto-rows: 1fr; }

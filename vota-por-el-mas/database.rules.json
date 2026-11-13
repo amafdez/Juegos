@@ -1,0 +1,14 @@
+{
+  "rules": {
+    "rooms": {
+      "$code": {
+        ".read": true,
+        ".write": true
+      }
+    },
+    "seen": {
+      ".read": true,
+      ".write": true
+    }
+  }
+}
