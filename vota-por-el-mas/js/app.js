@@ -35,6 +35,8 @@ let clockOffset = 0; // reloj del servidor menos reloj de este teléfono
 let uiTimer = null;
 let endArmed = false;
 let armTimer = null;
+let leaveArmed = false;
+let leaveTimer = null;
 
 const now = () => Date.now() + clockOffset;
 const secondsSetting = (st) => (st && st.seconds !== undefined && st.seconds !== null ? Number(st.seconds) : DEFAULT_SECONDS);
@@ -73,8 +75,11 @@ const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 const isHost = () => Boolean(room && session && room.hostId === session.pid);
 const roomPath = (p = "") => `rooms/${session.code}${p ? "/" + p : ""}`;
 const nameOf = (id) => (room && room.players && room.players[id] && room.players[id].name) || "—";
+// Quien se sale de una partida queda marcado con left (se conserva su nombre para los resultados).
+const isPresent = (id) => Boolean(room && room.players && room.players[id] && !room.players[id].left);
 const sortedPlayerIds = (r) =>
   Object.entries(r.players || {})
+    .filter(([, p]) => !p.left)
     .sort((a, b) => (a[1].joinedAt || 0) - (b[1].joinedAt || 0))
     .map(([id]) => id);
 
@@ -119,17 +124,22 @@ async function joinRoom(code, name) {
   const r = await store.get(`rooms/${code}`);
   if (!r) throw new UserError("No encontré esa sala. Revisa el código.");
   const entries = Object.entries(r.players || {});
+  const active = entries.filter(([, p]) => !p.left);
   const same = entries.find(([, p]) => p.name.toLowerCase() === name.toLowerCase());
   const prev = loadSession();
   let pid;
   if (r.status === "playing") {
     if (!same) throw new UserError("La partida ya empezó. Para volver, entra con el mismo nombre de antes.");
     pid = same[0];
+    if (same[1].left) await store.remove(`rooms/${code}/players/${pid}/left`);
   } else if (same) {
-    if (prev && prev.code === code && prev.pid === same[0]) pid = same[0];
+    if (same[1].left) {
+      pid = same[0];
+      await store.remove(`rooms/${code}/players/${pid}/left`);
+    } else if (prev && prev.code === code && prev.pid === same[0]) pid = same[0];
     else throw new UserError("Ese nombre ya está en la sala. Usa otro.");
   } else {
-    if (entries.length >= MAX_PLAYERS) throw new UserError("La sala está llena.");
+    if (active.length >= MAX_PLAYERS) throw new UserError("La sala está llena.");
     pid = uid();
     await store.set(`rooms/${code}/players/${pid}`, { name, joinedAt: Date.now() });
   }
@@ -183,6 +193,53 @@ async function leave(removeSelf) {
     }
   }
   render();
+}
+
+// Salir en medio de una partida: queda marcado como ausente, se rehacen las rondas que faltan sin esa persona
+// y, si quedan menos de 2, la partida termina. Puede volver entrando con el mismo nombre.
+async function leaveGame() {
+  const s = session;
+  const r = room;
+  const base = `rooms/${s.code}`;
+  const upd = { [`${base}/players/${s.pid}/left`]: true };
+  try {
+    if (r && r.status === "playing" && r.game) {
+      const g = gameView();
+      if (g.phase !== "final") {
+        const present = g.order.filter((id) => id !== s.pid && r.players[id] && !r.players[id].left);
+        const next = g.current + 1;
+        if (present.length < MIN_PLAYERS) {
+          const played = g.phase === "result" ? g.current + 1 : g.current;
+          upd[`${base}/game/phase`] = "final";
+          upd[`${base}/game/played`] = played;
+          g.rounds.slice(played).forEach((rd) => (upd[`seen/${rd.qid}`] = null));
+        } else if (next < g.rounds.length) {
+          const plan = planRounds({ playerIds: present, rounds: g.rounds.length - next, mode: r.settings.mode });
+          plan.forEach((pl, i) => (upd[`${base}/game/rounds/${next + i}/cand`] = pl.cand));
+        }
+      }
+    }
+    await store.update(upd);
+  } catch (e) {
+    console.error(e);
+  }
+  leaveArmed = false;
+  clearTimeout(leaveTimer);
+  homeMsg = "Saliste de la partida. Puedes volver con el mismo nombre y el código.";
+  leave(false);
+}
+
+// Dos toques para salir, así no se sale por accidente.
+function askLeave() {
+  if (leaveArmed) return leaveGame();
+  leaveArmed = true;
+  render();
+  clearTimeout(leaveTimer);
+  leaveTimer = setTimeout(() => {
+    if (!leaveArmed) return;
+    leaveArmed = false;
+    render();
+  }, 4000);
 }
 
 async function closeRoom() {
@@ -274,7 +331,9 @@ function askEnd() {
 
 const playAgain = () => {
   endArmed = false;
-  return store.update({ [roomPath("status")]: "lobby", [roomPath("game")]: null, [roomPath("votes")]: null });
+  const upd = { [roomPath("status")]: "lobby", [roomPath("game")]: null, [roomPath("votes")]: null };
+  for (const [id, p] of Object.entries(room.players || {})) if (p.left) upd[roomPath(`players/${id}`)] = null;
+  return store.update(upd);
 };
 
 // La ronda termina cuando votan todos o se acaba el tiempo, lo que ocurra primero.
@@ -286,7 +345,8 @@ function hostTick() {
   if (g.phase !== "vote") return;
   const key = String(g.current);
   const votes = votesFor(g.current);
-  const everyone = g.order.length > 0 && g.order.every((id) => votes[id]);
+  const here = g.order.filter(isPresent);
+  const everyone = here.length > 0 && here.every((id) => votes[id]);
   const left = g.deadline ? Math.max(0, g.deadline - now()) : null;
   let wait = null;
   if (isHost()) {
@@ -439,7 +499,7 @@ function lobbyView() {
   const s = room.settings;
   const host = isHost();
   const cats = toArr(s.cats);
-  const n = Object.keys(room.players || {}).length;
+  const n = sortedPlayerIds(room).length;
   const modeLabel = (MODES.find((m) => m.id === s.mode) || MODES[2]).label;
   const catNames = CATEGORIES.filter((c) => cats.includes(c.id)).map((c) => c.name);
 
@@ -498,6 +558,9 @@ function questionBlock(text) {
   return h("div", { class: "jg-q" }, h("p", { class: "question" }, text));
 }
 
+const leaveButton = () =>
+  leaveArmed ? btn("Toca otra vez para salir", "jg-btn--pink", askLeave) : btn("Salir de la partida", "jg-btn--ghost", askLeave);
+
 const endButton = () =>
   endArmed ? btn("Toca otra vez para terminar", "jg-btn--pink", askEnd) : btn("Terminar partida", "jg-btn--ghost", askEnd);
 
@@ -505,8 +568,9 @@ function voteView(g) {
   const r = g.rounds[g.current];
   const votes = votesFor(g.current);
   const mine = votes[session.pid];
-  const done = g.order.filter((id) => votes[id]).length;
-  const pending = g.order.filter((id) => !votes[id]);
+  const here = g.order.filter(isPresent);
+  const done = here.filter((id) => votes[id]).length;
+  const pending = here.filter((id) => !votes[id]);
   const left = g.deadline ? secondsLeft(g.deadline, now()) : null;
 
   return h(
@@ -533,10 +597,10 @@ function voteView(g) {
     h(
       "div",
       { class: "vm-foot" },
-      h("p", { class: "caption", style: "color:var(--ink-2)", "aria-live": "polite" }, `${done} de ${g.order.length} votaron · ${mine ? "Puedes cambiar tu voto" : "Toca un nombre para votar"}`),
+      h("p", { class: "caption", style: "color:var(--ink-2)", "aria-live": "polite" }, `${done} de ${here.length} votaron · ${mine ? "Puedes cambiar tu voto" : "Toca un nombre para votar"}`),
       isHost()
         ? h("div", { class: "vm-actions" }, done > 0 && pending.length ? btn("Mostrar resultados", "jg-btn--outline", showResults) : null, endButton())
-        : null
+        : h("div", { class: "vm-actions" }, leaveButton())
     )
   );
 }
@@ -575,7 +639,12 @@ function resultView(g) {
       { class: "vm-foot" },
       isHost()
         ? h("div", { class: "vm-actions" }, btn(last ? "Ver podio" : "Siguiente", "jg-btn--sky", nextRound), last ? null : endButton())
-        : h("p", { class: "caption", style: "color:var(--ink-2)" }, `Sigue ${nameOf(room.hostId)}.`)
+        : h(
+            "div",
+            { class: "vm-actions" },
+            h("p", { class: "caption", style: "color:var(--ink-2)" }, `Sigue ${nameOf(room.hostId)}.`),
+            leaveButton()
+          )
     )
   );
 }
@@ -592,7 +661,7 @@ function finalView(g) {
         "div",
         { class: "jg-stack" },
         isHost() ? btn("Jugar otra vez", "jg-btn--butter", playAgain) : null,
-        isHost() ? btn("Cerrar sala", "jg-btn--ghost", closeRoom) : btn("Salir", "jg-btn--ghost", () => leave(false))
+        isHost() ? btn("Cerrar sala", "jg-btn--ghost", closeRoom) : btn("Salir", "jg-btn--ghost", leaveGame)
       ),
     ];
   const votesByRound = Object.fromEntries(playedRounds.map((_, i) => [i, votesFor(i)]));
@@ -640,7 +709,7 @@ function finalView(g) {
       "div",
       { class: "jg-stack" },
       isHost() ? btn("Jugar otra vez", "jg-btn--butter", playAgain) : null,
-      isHost() ? btn("Cerrar sala", "jg-btn--ghost", closeRoom) : btn("Salir", "jg-btn--ghost", () => leave(false))
+      isHost() ? btn("Cerrar sala", "jg-btn--ghost", closeRoom) : btn("Salir", "jg-btn--ghost", leaveGame)
     ),
   ];
 }
