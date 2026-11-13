@@ -1,6 +1,6 @@
 # Vota por el más
 
-Juego de votación para celular. Una sala con código de 4 letras, cada persona entra desde su teléfono, aparece una pregunta ("¿Quién...?") con 2 o 4 nombres y todas votan. Algunas rondas son privadas (solo conteo) y otras públicas (se ve quién votó por quién). Las parejas y los grupos rotan solos.
+Juego de votación para celular. Una sala con código de 4 letras, cada persona entra desde su teléfono, aparece una pregunta hipotética ("¿Quién es la más probable de...?") con 2 o 4 nombres y todas votan. Algunas rondas son privadas (solo conteo) y otras públicas (se ve quién votó por quién). Las parejas y los grupos rotan solos.
 
 Hecho con tu design system "Juego". Sin build, sin servidor propio: HTML + JS, Firebase Realtime Database para sincronizar y GitHub Pages para publicarlo, todo gratis.
 
@@ -51,7 +51,7 @@ GitHub Pages gratis pide que el repositorio sea público. El link del juego se c
 
 ## Agregar o cambiar preguntas
 
-Edita `js/questions.js`: cada categoría es una lista de textos. Reglas que usé: empiezan con "¿Quién", sin signos de exclamación, sin emojis, y en Primos nada sexual. Puedes correr los chequeos con:
+Edita `js/questions.js`: cada categoría es una lista de textos. Reglas que usé: empiezan con "¿Quién", en forma hipotética ("la más probable de", "sería capaz de", "más pinta de"), sin signos de exclamación, sin emojis, y en Primos nada sexual. Puedes correr los chequeos con:
 
 ```
 node --test tests/logic.test.mjs
