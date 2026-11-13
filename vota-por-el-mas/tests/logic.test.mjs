@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { BANK, CATEGORIES } from "../js/questions.js";
-import { pickQuestions, planRounds, tallyRound, finalStats, makeCode, normalizeCode, cleanName, toArr } from "../js/logic.js";
+import { pickQuestions, planRounds, tallyRound, finalStats, makeCode, normalizeCode, cleanName, toArr, secondsLeft, fmtClock } from "../js/logic.js";
 
 test("banco: sin ids ni textos repetidos, todas con formato de pregunta", () => {
   const ids = new Set(BANK.map((q) => q.id));
@@ -115,4 +115,14 @@ test("utilidades", () => {
   assert.equal(cleanName("   Sofi   Pérez   Muy Larga Nombre "), "Sofi Pérez Muy");
   assert.deepEqual(toArr({ 0: "a", 1: "b" }), ["a", "b"]);
   assert.deepEqual(toArr(null), []);
+});
+
+test("temporizador: segundos restantes y formato", () => {
+  assert.equal(secondsLeft(15000, 0), 15);
+  assert.equal(secondsLeft(15000, 14001), 1);
+  assert.equal(secondsLeft(15000, 15000), 0);
+  assert.equal(secondsLeft(15000, 20000), 0);
+  assert.equal(fmtClock(15), "0:15");
+  assert.equal(fmtClock(5), "0:05");
+  assert.equal(fmtClock(75), "1:15");
 });

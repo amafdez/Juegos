@@ -181,3 +181,10 @@ export function finalStats({ rounds, votesByRound, players }) {
   const leaders = top ? ranking.filter((s) => s.received === top.received && s.wins === top.wins) : [];
   return { ranking, leaders };
 }
+
+// ---------- Tiempo por ronda ----------
+
+export const TIME_OPTIONS = [10, 15, 20, 30, 0]; // 0 = sin tiempo
+export const DEFAULT_SECONDS = 15;
+export const secondsLeft = (deadline, now) => Math.max(0, Math.ceil((deadline - now) / 1000));
+export const fmtClock = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;

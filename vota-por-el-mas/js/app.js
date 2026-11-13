@@ -5,6 +5,10 @@ import {
   MIN_PLAYERS,
   ROUND_OPTIONS,
   MODES,
+  TIME_OPTIONS,
+  DEFAULT_SECONDS,
+  secondsLeft,
+  fmtClock,
   toArr,
   makeCode,
   normalizeCode,
@@ -27,6 +31,14 @@ let busy = false;
 let homeMsg = "";
 let draftName = "";
 let draftCode = "";
+let clockOffset = 0; // reloj del servidor menos reloj de este teléfono
+let uiTimer = null;
+let endArmed = false;
+let armTimer = null;
+
+const now = () => Date.now() + clockOffset;
+const secondsSetting = (st) => (st && st.seconds !== undefined && st.seconds !== null ? Number(st.seconds) : DEFAULT_SECONDS);
+const deadlineFor = (st) => (secondsSetting(st) > 0 ? now() + secondsSetting(st) * 1000 : null);
 
 // ---------- utilidades ----------
 
@@ -70,11 +82,15 @@ class UserError extends Error {}
 
 function gameView() {
   const g = room.game;
+  const rounds = toArr(g.rounds).map((r) => ({ ...r, cand: toArr(r.cand) }));
   return {
     phase: g.phase,
     current: Number(g.current || 0),
     order: toArr(g.order),
-    rounds: toArr(g.rounds).map((r) => ({ ...r, cand: toArr(r.cand) })),
+    rounds,
+    deadline: Number(g.deadline || 0),
+    // cuántas rondas cuentan para el podio (menos que el total si se termina antes)
+    played: g.played === undefined || g.played === null ? rounds.length : Number(g.played),
   };
 }
 const votesFor = (i) => (room.votes && room.votes[i]) || {};
@@ -93,7 +109,7 @@ async function createRoom(name) {
     createdAt: Date.now(),
     hostId: pid,
     status: "lobby",
-    settings: { rounds: 10, mode: "mix", cats: ["fiesta"] },
+    settings: { rounds: 10, mode: "mix", seconds: DEFAULT_SECONDS, cats: ["fiesta"] },
     players: { [pid]: { name, joinedAt: Date.now() } },
   });
   enter({ code, pid, name });
@@ -154,6 +170,7 @@ async function leave(removeSelf) {
   if (unwatch) unwatch();
   unwatch = null;
   clearTimeout(revealTimer);
+  clearInterval(uiTimer);
   session = null;
   room = null;
   saveSession(null);
@@ -195,7 +212,7 @@ async function startGame() {
     const plan = planRounds({ playerIds: ids, rounds: picked.length, mode: s.mode });
     const rounds = picked.map((q, i) => ({ qid: q.id, cat: q.cat, q: q.t, cand: plan[i].cand, public: plan[i].public }));
     const upd = {
-      [roomPath("game")]: { order: ids, rounds, current: 0, phase: "vote" },
+      [roomPath("game")]: { order: ids, rounds, current: 0, phase: "vote", deadline: deadlineFor(s) },
       [roomPath("status")]: "playing",
       [roomPath("votes")]: null,
     };
@@ -214,6 +231,7 @@ async function startGame() {
 const castVote = (candId) => {
   const g = gameView();
   if (g.phase !== "vote") return;
+  if (g.deadline && now() > g.deadline + 500) return; // se acabó el tiempo
   return store.set(roomPath(`votes/${g.current}/${session.pid}`), candId);
 };
 
@@ -221,20 +239,83 @@ const showResults = () => store.set(roomPath("game/phase"), "result");
 
 function nextRound() {
   const g = gameView();
-  if (g.current + 1 >= g.rounds.length) return store.set(roomPath("game/phase"), "final");
-  return store.update({ [roomPath("game/current")]: g.current + 1, [roomPath("game/phase")]: "vote" });
+  if (g.current + 1 >= g.rounds.length)
+    return store.update({ [roomPath("game/phase")]: "final", [roomPath("game/played")]: g.rounds.length });
+  return store.update({
+    [roomPath("game/current")]: g.current + 1,
+    [roomPath("game/phase")]: "vote",
+    [roomPath("game/deadline")]: deadlineFor(room.settings),
+  });
 }
 
-const playAgain = () => store.update({ [roomPath("status")]: "lobby", [roomPath("game")]: null, [roomPath("votes")]: null });
+// Termina la partida ahora: el podio cuenta solo las rondas ya jugadas y las preguntas que no salieron quedan disponibles.
+function endGame() {
+  const g = gameView();
+  const played = g.phase === "result" ? g.current + 1 : g.current;
+  const upd = { [roomPath("game/phase")]: "final", [roomPath("game/played")]: played };
+  g.rounds.slice(played).forEach((r) => (upd[`seen/${r.qid}`] = null));
+  endArmed = false;
+  clearTimeout(armTimer);
+  return store.update(upd);
+}
 
-// El host muestra los resultados apenas todos votaron.
+// Dos toques para terminar, así no se termina por accidente.
+function askEnd() {
+  if (endArmed) return endGame();
+  endArmed = true;
+  render();
+  clearTimeout(armTimer);
+  armTimer = setTimeout(() => {
+    if (!endArmed) return;
+    endArmed = false;
+    render();
+  }, 4000);
+}
+
+const playAgain = () => {
+  endArmed = false;
+  return store.update({ [roomPath("status")]: "lobby", [roomPath("game")]: null, [roomPath("votes")]: null });
+};
+
+// La ronda termina cuando votan todos o se acaba el tiempo, lo que ocurra primero.
+// Lo decide el host; si el host se desconecta, cualquiera lo hace unos segundos después.
 function hostTick() {
   clearTimeout(revealTimer);
-  if (!isHost() || !room || room.status !== "playing" || !room.game) return;
+  if (!room || room.status !== "playing" || !room.game) return;
   const g = gameView();
   if (g.phase !== "vote") return;
+  const key = String(g.current);
   const votes = votesFor(g.current);
-  if (g.order.length && g.order.every((id) => votes[id])) revealTimer = setTimeout(showResults, 700);
+  const everyone = g.order.length > 0 && g.order.every((id) => votes[id]);
+  const left = g.deadline ? Math.max(0, g.deadline - now()) : null;
+  let wait = null;
+  if (isHost()) {
+    if (everyone) wait = 700;
+    else if (left !== null) wait = left;
+  } else if (everyone) wait = 4000;
+  else if (left !== null) wait = left + 4000;
+  if (wait === null) return;
+  revealTimer = setTimeout(() => {
+    const cur = room && room.game ? gameView() : null;
+    if (cur && cur.phase === "vote" && String(cur.current) === key) showResults();
+  }, wait);
+}
+
+function startCountdown() {
+  clearInterval(uiTimer);
+  uiTimer = null;
+  if (!room || !room.game || room.status !== "playing") return;
+  const g = gameView();
+  if (g.phase !== "vote" || !g.deadline) return;
+  const paint = () => {
+    const el = document.querySelector(".vm-timer");
+    if (!el) return;
+    const left = secondsLeft(g.deadline, now());
+    el.textContent = fmtClock(left);
+    el.classList.toggle("is-low", left <= 5);
+  };
+  paint();
+  uiTimer = setInterval(paint, 250);
 }
 
 // ---------- vistas ----------
@@ -371,6 +452,13 @@ function lobbyView() {
         h(
           "div",
           { class: "vm-field" },
+          h("span", { class: "label" }, "Tiempo por ronda"),
+          h("div", { class: "vm-chips" }, TIME_OPTIONS.map((t) => chip(t ? `${t} s` : "Sin tiempo", secondsSetting(s) === t, () => setSetting("seconds", t)))),
+          h("p", { class: "caption", style: "color:var(--ink-2)" }, "La ronda termina cuando votan todas o se acaba el tiempo.")
+        ),
+        h(
+          "div",
+          { class: "vm-field" },
           h("span", { class: "label" }, "Categorías"),
           h("div", { class: "vm-chips" }, CATEGORIES.map((c) => chip(c.name, cats.includes(c.id), () => toggleCat(c.id)))),
           h("p", { class: "caption", style: "color:var(--ink-2)" }, "Primos evita temas sexuales. Las otras no.")
@@ -380,7 +468,7 @@ function lobbyView() {
         "div",
         { class: "jg-card" },
         h("p", { class: "answer" }, `Esperando a que ${nameOf(room.hostId)} empiece.`),
-        h("p", { class: "caption", style: "color:var(--ink-2)" }, `${plural(Number(s.rounds), "ronda", "rondas")} · ${modeLabel} · ${catNames.join(", ")}`)
+        h("p", { class: "caption", style: "color:var(--ink-2)" }, `${plural(Number(s.rounds), "ronda", "rondas")} · ${modeLabel} · ${secondsSetting(s) ? secondsSetting(s) + " s" : "sin tiempo"} · ${catNames.join(", ")}`)
       );
 
   const canStart = n >= MIN_PLAYERS && cats.length > 0 && !busy;
@@ -410,12 +498,16 @@ function questionBlock(text) {
   return h("div", { class: "jg-q" }, h("p", { class: "question" }, text));
 }
 
+const endButton = () =>
+  endArmed ? btn("Toca otra vez para terminar", "jg-btn--pink", askEnd) : btn("Terminar partida", "jg-btn--ghost", askEnd);
+
 function voteView(g) {
   const r = g.rounds[g.current];
   const votes = votesFor(g.current);
   const mine = votes[session.pid];
   const done = g.order.filter((id) => votes[id]).length;
   const pending = g.order.filter((id) => !votes[id]);
+  const left = g.deadline ? secondsLeft(g.deadline, now()) : null;
 
   return h(
     "div",
@@ -424,7 +516,7 @@ function voteView(g) {
       "div",
       { class: "jg-screen-head" },
       h("span", { class: "label", style: "color:var(--ink-2)" }, `Ronda ${g.current + 1} de ${g.rounds.length}`),
-      h("span", { class: "jg-pill", "aria-live": "polite" }, `${done} de ${g.order.length}`)
+      left !== null ? h("span", { class: "jg-pill vm-timer" + (left <= 5 ? " is-low" : ""), role: "timer" }, fmtClock(left)) : null
     ),
     questionBlock(r.q),
     h(
@@ -441,14 +533,9 @@ function voteView(g) {
     h(
       "div",
       { class: "vm-foot" },
-      mine ? h("p", { class: "caption", style: "color:var(--ink-2)" }, "Voto enviado. Puedes cambiarlo hasta que salgan los resultados.") : h("p", { class: "caption", style: "color:var(--ink-2)" }, "Toca un nombre para votar."),
-      isHost() && pending.length && done > 0
-        ? h(
-            "div",
-            { class: "vm-host-note" },
-            h("p", { class: "caption", style: "color:var(--ink-2)" }, `Falta: ${pending.map(nameOf).join(", ")}`),
-            btn("Mostrar resultados", "jg-btn--outline", showResults)
-          )
+      h("p", { class: "caption", style: "color:var(--ink-2)", "aria-live": "polite" }, `${done} de ${g.order.length} votaron · ${mine ? "Puedes cambiar tu voto" : "Toca un nombre para votar"}`),
+      isHost()
+        ? h("div", { class: "vm-actions" }, done > 0 && pending.length ? btn("Mostrar resultados", "jg-btn--outline", showResults) : null, endButton())
         : null
     )
   );
@@ -486,15 +573,30 @@ function resultView(g) {
     h(
       "div",
       { class: "vm-foot" },
-      isHost() ? btn(last ? "Ver podio" : "Siguiente", "jg-btn--sky", nextRound) : h("p", { class: "caption", style: "color:var(--ink-2)" }, `Sigue ${nameOf(room.hostId)}.`)
+      isHost()
+        ? h("div", { class: "vm-actions" }, btn(last ? "Ver podio" : "Siguiente", "jg-btn--sky", nextRound), last ? null : endButton())
+        : h("p", { class: "caption", style: "color:var(--ink-2)" }, `Sigue ${nameOf(room.hostId)}.`)
     )
   );
 }
 
 function finalView(g) {
   const players = Object.fromEntries(g.order.map((id) => [id, { name: nameOf(id) }]));
-  const votesByRound = Object.fromEntries(g.rounds.map((_, i) => [i, votesFor(i)]));
-  const { ranking, leaders } = finalStats({ rounds: g.rounds, votesByRound, players });
+  const playedRounds = g.rounds.slice(0, g.played);
+  const earlyEnd = g.played < g.rounds.length;
+  const label = `${earlyEnd ? "Partida terminada antes" : "Fin de la partida"} · ${plural(g.played, "ronda", "rondas")}`;
+  if (g.played === 0)
+    return [
+      h("div", { class: "jg-stack" }, h("p", { class: "label", style: "color:var(--ink-2)" }, "Partida terminada"), h("h1", { class: "display", style: "margin:0" }, "No se jugó ninguna ronda")),
+      h(
+        "div",
+        { class: "jg-stack" },
+        isHost() ? btn("Jugar otra vez", "jg-btn--butter", playAgain) : null,
+        isHost() ? btn("Cerrar sala", "jg-btn--ghost", closeRoom) : btn("Salir", "jg-btn--ghost", () => leave(false))
+      ),
+    ];
+  const votesByRound = Object.fromEntries(playedRounds.map((_, i) => [i, votesFor(i)]));
+  const { ranking, leaders } = finalStats({ rounds: playedRounds, votesByRound, players });
   const top = ranking.slice(0, 3);
   const maxVotes = Math.max(1, ...ranking.map((s) => s.received));
   const headline = leaders.length === 1 ? `Más votado: ${leaders[0].name}` : `Empate: ${leaders.map((l) => l.name).join(", ")}`;
@@ -513,7 +615,7 @@ function finalView(g) {
       : [step(top[1], 2), step(top[0], 1)];
 
   return [
-    h("div", { class: "jg-stack" }, h("p", { class: "label", style: "color:var(--ink-2)" }, "Fin de la partida"), h("h1", { class: "display", style: "margin:0" }, headline)),
+    h("div", { class: "jg-stack" }, h("p", { class: "label", style: "color:var(--ink-2)" }, label), h("h1", { class: "display", style: "margin:0" }, headline)),
     h("div", { class: "jg-podium", style: top.length < 3 ? "grid-template-columns:1fr 1fr" : "" }, podium),
     h(
       "div",
@@ -565,6 +667,7 @@ function render() {
   root.replaceChildren(main);
   if (!fresh) window.scrollTo(0, y);
   else window.scrollTo(0, 0);
+  startCountdown();
 }
 
 // ---------- arranque ----------
@@ -578,6 +681,9 @@ async function boot() {
     root.replaceChildren(h("main", { class: "vm-screen" }, h("p", { class: "vm-error" }, "No pude cargar Firebase. Revisa firebase-config.js y tu internet.")));
     return;
   }
+  store.serverOffset((o) => {
+    clockOffset = o;
+  });
   draftName = localStorage.getItem("vpm-name") || "";
   session = loadSession();
   if (session) watchRoom(session.code);

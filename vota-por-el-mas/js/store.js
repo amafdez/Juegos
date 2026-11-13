@@ -37,6 +37,10 @@ async function firebaseStore(cfg) {
     watch(path, cb) {
       return fb.onValue(fb.ref(db, path), (snap) => cb(snap.val()));
     },
+    // diferencia entre el reloj de este teléfono y el del servidor, para que el temporizador sea igual en todos
+    serverOffset(cb) {
+      return fb.onValue(fb.ref(db, ".info/serverTimeOffset"), (snap) => cb(Number(snap.val()) || 0));
+    },
   };
 }
 
@@ -102,6 +106,10 @@ function localStore() {
       setAt(db, path, null);
       write(db);
       notify();
+    },
+    serverOffset(cb) {
+      cb(0);
+      return () => {};
     },
     watch(path, cb) {
       const w = { path, cb };

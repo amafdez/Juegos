@@ -8,9 +8,10 @@ Hecho con tu design system "Juego". Sin build, sin servidor propio: HTML + JS, F
 
 1. Una persona (el host) crea la sala y comparte el código.
 2. Las demás entran con su nombre y el código (2 a 12 personas).
-3. El host elige rondas (5 a 30), candidatos por ronda (2, 4 o mezcla) y categorías (Solo chicas, Fiesta, Primos).
-4. Cada ronda, todas votan. Cuando votó la última, salen los resultados. El host toca "Siguiente".
-5. Al final: podio de "más votado" con votos recibidos y rondas ganadas. "Jugar otra vez" vuelve a la sala con las mismas personas.
+3. El host elige rondas (5 a 30), candidatos por ronda (2, 4 o mezcla), tiempo por ronda (10, 15, 20, 30 segundos o sin tiempo; 15 por defecto) y categorías (Solo chicas, Fiesta, Primos).
+4. Cada ronda termina cuando votan todas o se acaba el tiempo, lo que pase primero. El host también puede tocar "Mostrar resultados" antes. Después toca "Siguiente".
+5. Si quieren parar antes, el host toca "Terminar partida" (dos toques para confirmar). El podio cuenta solo las rondas ya jugadas y las preguntas que no salieron quedan disponibles para otra partida.
+6. Al final: podio de "más votado" con votos recibidos y rondas ganadas. "Jugar otra vez" vuelve a la sala con las mismas personas.
 
 Las preguntas que ya salieron no se repiten en partidas siguientes. Cuando se agota una categoría, el historial de esa categoría se reinicia solo.
 
@@ -59,7 +60,8 @@ Para reiniciar el historial de "ya jugadas" a mano: Realtime Database, pestaña 
 
 ## Cosas a saber
 
-- El host maneja el ritmo. Si cierra la app, la partida queda en pausa hasta que vuelva a abrir el link (la sesión se recupera sola). Si alguien se desconecta, el host puede tocar "Mostrar resultados" sin esperar su voto.
+- El host maneja el ritmo. Con tiempo activado, si el host se desconecta, cualquiera de las demás hace avanzar los resultados unos 4 segundos después de que se acabe el tiempo. Sin tiempo, la partida espera al host (la sesión se recupera sola al volver a abrir el link).
+- El reloj usa la hora del servidor de Firebase, así que marca lo mismo en todos los teléfonos aunque tengan la hora mal puesta.
 - Quien se sale en medio de una partida puede volver entrando con el mismo nombre.
 - Las reglas de la base de datos son abiertas para `rooms` y `seen`: cualquiera que tenga el código de una sala puede jugar en ella. Para un juego entre amigas alcanza. Si lo quieres más cerrado, hay que sumar autenticación anónima de Firebase.
 - Solo está el peso Bold de Astrid Grotesk en los archivos del design system, así que todo el texto sale en Bold. Si agregas los demás pesos a `fonts/`, declara un `@font-face` por cada uno al inicio de `css/game.css`.
